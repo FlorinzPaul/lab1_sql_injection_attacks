@@ -18,14 +18,18 @@ public class Authenticator {
      * @throws RuntimeException if there is a SQL error during authentication
      */
     public static boolean authenticateUser(String username, String password) {
-        try(var conn = DBUtil.connect("jdbc:sqlite:src/main/resources/database/sample.db",
-                "root","root")) {
-            try(var statement = conn.createStatement()) {
+
+        username = sanitizeInput(username);
+        password = sanitizeInput(password);
+
+        try (var conn = DBUtil.connect("jdbc:sqlite:src/main/resources/database/sample.db", "app_user", "secure_password")) {
+            try (var statement = conn.createStatement()) {
                 var query = """
                         SELECT * FROM user_data
-                        WHERE username =\s""" + "'" + username + "'"
-                        + "AND password = " + "'" + password + "'";
-                System.out.println(query);
+                        WHERE username = '""" + username + "'"
+                        + " AND password = '" + password + "'";
+
+                System.out.println(query); // Debugging only, remove in production
                 ResultSet rs = statement.executeQuery(query);
 
                 return rs.next();
@@ -33,5 +37,19 @@ public class Authenticator {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Sanitizes user input by escaping quotes and removing dangerous characters.
+     *
+     * @param input The raw user input
+     * @return The sanitized input
+     */
+    private static String sanitizeInput(String input) {
+        if (input == null) return "";
+        input = input.trim(); // Remove leading and trailing spaces
+        input = input.replace("'", "''"); // Escape single quotes
+        input  = input.replaceAll("[\";\\-\\/*]", ""); // Remove SQL-injection related characters
+        return input;
     }
 }
